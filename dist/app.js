@@ -1,30 +1,66 @@
-function getMonthlyActiveUsers(userDevices) {
-    const monthlyActiveUsers = {};
-    userDevices.forEach((userDevice) => {
-        const loginMonth = userDevice.lastSeenAt.getMonth();
-        const loginYear = userDevice.lastSeenAt.getFullYear();
-        const monthKey = `${loginYear}-${loginMonth + 1}`;
-        if (!monthlyActiveUsers[monthKey]) {
-            monthlyActiveUsers[monthKey] = [];
+function isValidTrip(trip, shipment) {
+    // Check if all pick-up locations are valid
+    for (const pickup of trip.pickups) {
+        if (!shipment.pickupLocations.has(pickup)) {
+            return false;
         }
-        const userActiveInMonth = isUserActiveInMonth(userDevice, loginMonth, loginYear);
-        if (userActiveInMonth) {
-            monthlyActiveUsers[monthKey].push(userDevice.userId);
+    }
+    // Check if all drop-off locations are valid
+    for (const dropoff of trip.dropoffs) {
+        if (!shipment.dropoffLocations.has(dropoff)) {
+            return false;
         }
-    });
-    return monthlyActiveUsers;
+    }
+    return true;
 }
-function isUserActiveInMonth(userDevice, month, year) {
-    const userLastSeenInMonth = userDevice.lastSeenAt >= new Date(year, month, 1) && userDevice.lastSeenAt <= new Date();
-    return userLastSeenInMonth;
+function areTripsValid(trips, shipment) {
+    const seenPickups = new Set();
+    const seenDropoffs = new Set();
+    // Check if all trips are valid individually
+    for (const trip of trips) {
+        if (!isValidTrip(trip, shipment)) {
+            return false;
+        }
+    }
+    // Check if all shipment pick-up locations are covered
+    for (const trip of trips) {
+        for (const pickup of trip.pickups) {
+            if (!seenPickups.has(pickup)) {
+                seenPickups.add(pickup);
+            }
+            else {
+                return false; // Duplicate pickup in a trip or across trips
+            }
+        }
+    }
+    // Check if all shipment drop-off locations are covered
+    for (const trip of trips) {
+        for (const dropoff of trip.dropoffs) {
+            if (!seenDropoffs.has(dropoff)) {
+                seenDropoffs.add(dropoff);
+            }
+            else {
+                return false; // Duplicate drop-off in a trip or across trips
+            }
+        }
+    }
+    // All pick-ups and drop-offs are covered by valid trips
+    return seenPickups.size === shipment.pickupLocations.size &&
+        seenDropoffs.size === shipment.dropoffLocations.size;
 }
 // Example usage
-const userDevices = [
-    // Sample data with login, logout, and lastSeenAt timestamps
-    { userId: "user1", deviceId: "device1", loggedIn: new Date(2024, 2, 15), loggedOut: new Date(2024, 3, 20), lastSeenAt: new Date() },
-    { userId: "user2", deviceId: "device2", loggedIn: new Date(2024, 1, 20), lastSeenAt: new Date() },
-    // ... and so on
+const shipment = {
+    pickupLocations: new Set(["A", "B"]),
+    dropoffLocations: new Set(["C", "D"])
+};
+const validTrips = [
+    { pickups: new Set(["A"]), warehouse: "W", dropoffs: new Set() },
+    { pickups: new Set(["B"]), warehouse: "W", dropoffs: new Set() },
+    { pickups: new Set(), warehouse: "W", dropoffs: new Set(["C"]) },
+    { pickups: new Set(), warehouse: "W", dropoffs: new Set(["D"]) }
 ];
-const monthlyActiveUsers = getMonthlyActiveUsers(userDevices);
-console.log(monthlyActiveUsers); // { "2024-2": ["user1"], "2024-3": ["user1", "user2"] }
+const invalidTrips = [
+    { pickups: new Set(["A"]), warehouse: "W1", dropoffs: new Set() }, // Invalid warehouse names
+    { pickups: new Set(["B"]), warehouse: "W2", dropoffs: new Set() },
+];
 //# sourceMappingURL=app.js.map
